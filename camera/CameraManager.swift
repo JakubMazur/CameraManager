@@ -26,6 +26,10 @@ public enum CameraFlashMode: Int {
     case off, on, auto
 }
 
+public enum CameraTorchMode: Int {
+    case off, on, auto
+}
+
 public enum CameraOutputMode {
     case stillImage, videoWithMic, videoOnly
 }
@@ -136,6 +140,7 @@ open class CameraManager: NSObject, AVCaptureFileOutputRecordingDelegate, UIGest
                     }
                     _updateCameraDevice(cameraDevice)
                     _updateFlashMode(flashMode)
+                    _updateTorchMode(torchMode)
                     _setupMaxZoomScale()
                     _zoom(0)
                 }
@@ -149,7 +154,17 @@ open class CameraManager: NSObject, AVCaptureFileOutputRecordingDelegate, UIGest
             if cameraIsSetup {
                 if flashMode != oldValue {
                     _updateFlashMode(flashMode)
-                    print("Flash Mode: \(flashMode.rawValue)")
+                }
+            }
+        }
+    }
+    
+    /// Property to change camera torch mode
+    open var torchMode = CameraTorchMode.off {
+        didSet {
+            if cameraIsSetup {
+                if torchMode != oldValue {
+                    _updateTorchMode(torchMode)
                 }
             }
         }
@@ -1195,7 +1210,23 @@ open class CameraManager: NSObject, AVCaptureFileOutputRecordingDelegate, UIGest
                 captureDevice.unlockForConfiguration()
             }
         }
-
+    }
+    
+    fileprivate func _updateTorchMode(_ flashMode: CameraTorchMode) {
+        captureSession?.beginConfiguration()
+        defer { captureSession?.commitConfiguration() }
+        for captureDevice in AVCaptureDevice.videoDevices  {
+            guard let avTorchMode = AVCaptureDevice.TorchMode(rawValue: flashMode.rawValue) else { continue }
+            if captureDevice.isTorchAvailable {
+                do {
+                    try captureDevice.lockForConfiguration()
+                } catch {
+                    return
+                }
+                captureDevice.torchMode = avTorchMode
+                captureDevice.unlockForConfiguration()
+            }
+        }
     }
     
     fileprivate func _performShutterAnimation(_ completion: (() -> Void)?) {
